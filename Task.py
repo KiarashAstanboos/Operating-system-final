@@ -1,9 +1,9 @@
 class task:
 
-    def __init__(self, name, duration, arival, type):
+    def __init__(self, name, duration, type):
         self.name = name
         self.burst = duration
-        self.arival = arival
+
         self.type = type  # X Y Z
 
         self.state = 'ready'  # ready/waiting/running

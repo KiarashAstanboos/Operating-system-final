@@ -31,8 +31,8 @@ def process(event,name,task,state):
             state = 'idle'
             task=None
         else:task.doneTime += 1
-        with printLock:
-            printState(state, task, name)
+        # with printLock:
+        #     printState(state, task, name)
 
         event.clear()
 
@@ -94,8 +94,6 @@ printLock=threading.Lock()
 available = []  # resources
 readyQueue = []
 waitingQueue = []
-tasksQueue = []
-terminated = []  # terminated tasks
 
 # getting input
 available = input().split()  # "enter resources amount"
@@ -103,7 +101,7 @@ taskAmount = input()  # "enter task amount"
 
 for i in range(int(taskAmount)):
     name, Type, duration = input().split()
-    readyQueue.append(task(name, int(duration), i, Type))
+    readyQueue.append(task(name, int(duration), Type))
 ###
 
 available = [int(i) for i in available]
@@ -141,6 +139,10 @@ for i in range(7):
         else:
             for i in waitingQueue:
                 print(i.name, end='')
+        print(thread1.task.name)
+        print(thread2.task.name)
+        print(thread3.task.name)
+        print(thread4.task.name)
 
     event1.set()
     # event2.set()
