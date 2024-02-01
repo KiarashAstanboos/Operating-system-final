@@ -11,42 +11,64 @@ class myThread(threading.Thread):
         self.state = 'idle'
         self.task = None
         self.event = event
+        self.m = True
 
     def run(self):
-        self.task = pull()
-        self.state = 'running'
+
         while True:
             self.event.wait()
-            if self.state == 'running':
-                if self.task.getRemainingTime() <= 0:
+            if self.task != None:
+                if self.task.getRemainingTime() == 0:  # age task qabli tamum shode bendazash birun az cpu
+
                     self.state = 'idle'
+
+                    threadLock.acquire()
+                    available[0] += self.task.need[0]  # bargardoondane manabe
+                    available[1] += self.task.need[1]
+                    available[2] += self.task.need[2]
+                    threadLock.release()
                     self.task = None
-                else:
-                    self.task.doneTime += 1
+            if self.task == None:  # age taski dakhel cpu nist task vardare
+                self.task, isempty = pull()
+
+            if isempty == False or self.state == 'running':  # ejra kardane task
+                self.state = 'running'
+                self.task.doneTime += 1
+
             self.event.clear()
-
-
-
-
 
 
 def pull() -> task:  # az ready queue task var midare
     threadLock.acquire()
-    task = readyQueue.pop(0)
-    task.state = 'running'
-    r1 = available.pop(0) - task.need[0]
-    r2 = available.pop(0) - task.need[1]
-    r3 = available.pop(0) - task.need[2]
-    available.append(r1)
-    available.append(r2)
-    available.append(r3)
+    task=None
+    while task==None :# search beshe baraye taski ke beshe dad be cpu tooye waiting ke momkene available satisfy nashe va bayad dobare search beshe
+        if len(readyQueue)>0:
+            task = readyQueue.pop(0)
+            if available[0] >= task.need[0] and available[1] >= task.need[1] and available[2] >= task.need[2]:
+                task.state = 'running'
+                r1 = available.pop(0) - task.need[0]
+                r2 = available.pop(0) - task.need[1]
+                r3 = available.pop(0) - task.need[2]
+                available.append(r1)
+                available.append(r2)
+                available.append(r3)
+                isempty = False
+            else:
+                pushWaiting(task)
+                task=None
+        else: break
+
+    if task==None:
+        isempty = True
     threadLock.release()
-    return task
+    return task, isempty
 
 
-def pushReady(self, task):  # append mikone be ready queue
+def pushReady(task):  # append mikone be ready queue
+
     task.state = 'ready'
     readyQueue.append(task)
+
 
 
 def pushWaiting(task):  # append mikone be  waiting queue
@@ -55,7 +77,6 @@ def pushWaiting(task):  # append mikone be  waiting queue
 
 
 threadLock = threading.Lock()
-printLock = threading.Lock()
 
 available = []  # resources
 readyQueue = []
@@ -69,10 +90,11 @@ for i in range(int(taskAmount)):
     name, Type, duration = input().split()
     readyQueue.append(task(name, int(duration), Type))
 ###
-
+readyQueue = sorted(readyQueue, key=lambda x: x.priority)
 available = [int(i) for i in available]
 
 event1 = threading.Event()
+condition = threading.Condition()
 
 thread1 = myThread("CPU 1", event1)
 thread2 = myThread("CPU 2", event1)
@@ -83,29 +105,27 @@ thread1.start()
 thread2.start()
 thread3.start()
 thread4.start()
-for i in range(7):
-
-    print('\n')
-    print("we are in time "+str(i))
+for timer in range(40):
+    print("\nwe are in time " + str(timer))
     # if not event1.is_set():
     for i in range(3):
         print("R%s:%s " % (i + 1, available[i]), end='')
 
     print('\nReadyQueue: ', end='')
     if len(readyQueue) == 0:
-        print("readyQueue is Empty!")
+        print("readyQueue is Empty!", end='')
     else:
         for i in readyQueue: print(i.name + ' ', end='')
 
-    print('WaitingQueue: ', end='')
+    print('\nWaitingQueue: ', end='')
     if len(waitingQueue) == 0:
-        print("waitingQueue is Empty!")
+        print("waitingQueue is Empty!",end='')
     else:
         for i in waitingQueue:
-            print(i.name, end='')
+            print(i.name+ ' ', end='')
 
     if thread1.state == 'running':
-        print("CPU1 " + thread1.task.name)
+        print("\nCPU1 " + thread1.task.name)
     else:
         print("CPU1 " + thread1.state)
 
@@ -123,11 +143,62 @@ for i in range(7):
         print("CPU4 " + thread4.task.name)
     else:
         print("CPU4 " + thread4.state)
-    event1.set()
+    for i in waitingQueue:
+        i.waitedTime += 1
 
-    time.sleep(3) #event.wait()
-thread1.join()
-thread2.join()
-thread3.join()
-thread4.join()
+
+    threadLock.acquire()
+    for i in waitingQueue:
+        if i.waitedTime > 4:
+            task = waitingQueue.pop(waitingQueue.index(i))
+            task.waitedTime=0
+            pushReady(task)
+    threadLock.release()
+    event1.set()
+    time.sleep(3)
+
+    if (len(waitingQueue) == 0 and len(readyQueue) == 0 and thread1.state == 'idle' and thread2.state == 'idle'
+            and thread3.state == 'idle' and thread4.state == 'idle'): break
+
+print("\nwe are in time " + str(timer))
+# if not event1.is_set():
+for i in range(3):
+    print("R%s:%s " % (i + 1, available[i]), end='')
+
+print('\nReadyQueue: ', end='')
+if len(readyQueue) == 0:
+    print("readyQueue is Empty!", end='')
+else:
+    for i in readyQueue: print(i.name + ' ', end='')
+
+print('\nWaitingQueue: ', end='')
+if len(waitingQueue) == 0:
+    print("waitingQueue is Empty!")
+else:
+    for i in waitingQueue:
+        print(i.name, end='')
+
+if thread1.state == 'running':
+    print("\nCPU1 " + thread1.task.name)
+else:
+    print("CPU1 " + thread1.state)
+
+if thread2.state == 'running':
+    print("CPU2 " + thread2.task.name)
+else:
+    print("CPU2 " + thread2.state)
+
+if thread3.state == 'running':
+    print("CPU3 " + thread3.task.name)
+else:
+    print("CPU3 " + thread3.state)
+
+if thread4.state == 'running':
+    print("CPU4 " + thread4.task.name)
+else:
+    print("CPU4 " + thread4.state)
+# thread1.join()
+# thread2.join()
+# thread3.join()
+# thread4.join()
 print("Done main thread")
