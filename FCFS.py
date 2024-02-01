@@ -13,52 +13,20 @@ class myThread(threading.Thread):
         self.event = event
 
     def run(self):
-
-            # self.event.wait()
-            # if self.state == 'idle':
-            self.task = pull()
-            self.state = 'running'
-            if self.state=='running':
-                process(self.event,self.name,self.task,self.state)
-                # self.task.doneTime += 1
-                # with printLock:
-                #     printState(self.state, self.task, self.name)
-            # self.event.clear()
-def process(event,name,task,state):
-    while not event.is_set():
-        event.wait()
-        if task.getRemainingTime() <= 0:
-            state = 'idle'
-            task=None
-        else:task.doneTime += 1
-        # with printLock:
-        #     printState(state, task, name)
-
-        event.clear()
+        self.task = pull()
+        self.state = 'running'
+        while True:
+            self.event.wait()
+            if self.state == 'running':
+                if self.task.getRemainingTime() <= 0:
+                    self.state = 'idle'
+                    self.task = None
+                else:
+                    self.task.doneTime += 1
+            self.event.clear()
 
 
-def printState(state, task, name):
-    # if name == 'CPU 1':
-    #     print('\n')
-    #     for i in range(3):
-    #         print(" R%s: %s " % (i + 1, available[i]), end='')
-    #
-    #     print('\nReadyQueue: ', end='')
-    #     if len(readyQueue) == 0:
-    #         print("readyQueue is Empty!")
-    #     else:
-    #         for i in readyQueue: print(i.name + ' ', end='')
-    #
-    #     print('\nWaitingQueue: ', end='')
-    #     if len(waitingQueue) == 0:
-    #         print("waitingQueue is Empty!")
-    #     else:
-    #         for i in waitingQueue:
-    #             print(i.name, end='')
-    if state == 'idle':
-        print("%s: %s \n" % (name, state))
-    else:
-        print("%s: %s %s\n" % (name, state, task.name))
+
 
 
 
@@ -69,12 +37,10 @@ def pull() -> task:  # az ready queue task var midare
     r1 = available.pop(0) - task.need[0]
     r2 = available.pop(0) - task.need[1]
     r3 = available.pop(0) - task.need[2]
-
     available.append(r1)
     available.append(r2)
     available.append(r3)
     threadLock.release()
-
     return task
 
 
@@ -89,7 +55,7 @@ def pushWaiting(task):  # append mikone be  waiting queue
 
 
 threadLock = threading.Lock()
-printLock=threading.Lock()
+printLock = threading.Lock()
 
 available = []  # resources
 readyQueue = []
@@ -107,9 +73,6 @@ for i in range(int(taskAmount)):
 available = [int(i) for i in available]
 
 event1 = threading.Event()
-# event2 = threading.Event()
-# event3 = threading.Event()
-# event4 = threading.Event()
 
 thread1 = myThread("CPU 1", event1)
 thread2 = myThread("CPU 2", event1)
@@ -121,34 +84,48 @@ thread2.start()
 thread3.start()
 thread4.start()
 for i in range(7):
-    with printLock:
+
+    print('\n')
+    print("we are in time "+str(i))
     # if not event1.is_set():
-        print('\n')
-        for i in range(3):
-            print("R%s:%s " % (i + 1, available[i]), end='')
+    for i in range(3):
+        print("R%s:%s " % (i + 1, available[i]), end='')
 
-        print('\nReadyQueue: ', end='')
-        if len(readyQueue) == 0:
-            print("readyQueue is Empty!")
-        else:
-            for i in readyQueue: print(i.name + ' ', end='')
+    print('\nReadyQueue: ', end='')
+    if len(readyQueue) == 0:
+        print("readyQueue is Empty!")
+    else:
+        for i in readyQueue: print(i.name + ' ', end='')
 
-        print('\nWaitingQueue: ', end='')
-        if len(waitingQueue) == 0:
-            print("waitingQueue is Empty!")
-        else:
-            for i in waitingQueue:
-                print(i.name, end='')
-        print(thread1.task.name)
-        print(thread2.task.name)
-        print(thread3.task.name)
-        print(thread4.task.name)
+    print('WaitingQueue: ', end='')
+    if len(waitingQueue) == 0:
+        print("waitingQueue is Empty!")
+    else:
+        for i in waitingQueue:
+            print(i.name, end='')
 
+    if thread1.state == 'running':
+        print("CPU1 " + thread1.task.name)
+    else:
+        print("CPU1 " + thread1.state)
+
+    if thread2.state == 'running':
+        print("CPU2 " + thread2.task.name)
+    else:
+        print("CPU2 " + thread2.state)
+
+    if thread3.state == 'running':
+        print("CPU3 " + thread3.task.name)
+    else:
+        print("CPU3 " + thread3.state)
+
+    if thread4.state == 'running':
+        print("CPU4 " + thread4.task.name)
+    else:
+        print("CPU4 " + thread4.state)
     event1.set()
-    # event2.set()
-    # event3.set()
-    # event4.set()
-    time.sleep(3)
+
+    time.sleep(3) #event.wait()
 thread1.join()
 thread2.join()
 thread3.join()
