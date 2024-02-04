@@ -1,17 +1,15 @@
 from Task import task
 import threading
 import time
-
-
 class myThread(threading.Thread):
 
-    def __init__(self, name, event):
+    def __init__(self, name, event,mevent):
         threading.Thread.__init__(self)
         self.name = name
         self.state = 'idle'
         self.task = None
         self.event = event
-        self.m = True
+        self.mevent=mevent
 
     def run(self):
 
@@ -34,8 +32,9 @@ class myThread(threading.Thread):
             if isempty == False or self.state == 'running':  # ejra kardane task
                 self.state = 'running'
                 self.task.doneTime += 1
-
+            self.mevent.set()
             self.event.clear()
+
 
 
 def pull() -> task:  # az ready queue task var midare
@@ -94,12 +93,17 @@ readyQueue = sorted(readyQueue, key=lambda x: x.priority)
 available = [int(i) for i in available]
 
 event1 = threading.Event()
-condition = threading.Condition()
+mainEvent=threading.Event()
+mainEvent2=threading.Event()
+mainEvent3=threading.Event()
+mainEvent4=threading.Event()
 
-thread1 = myThread("CPU 1", event1)
-thread2 = myThread("CPU 2", event1)
-thread3 = myThread("CPU 3", event1)
-thread4 = myThread("CPU 4", event1)
+thread1 = myThread("CPU 1", event1,mainEvent)
+thread2 = myThread("CPU 2", event1,mainEvent2)
+thread3 = myThread("CPU 3", event1,mainEvent3)
+thread4 = myThread("CPU 4", event1,mainEvent4)
+
+threads=[thread1,thread2,thread3,thread4]
 
 thread1.start()
 thread2.start()
@@ -148,19 +152,22 @@ for timer in range(40):
 
 
     threadLock.acquire()
-    for i in waitingQueue:
+    for i in waitingQueue: #starvation
         if i.waitedTime > 4:
             task = waitingQueue.pop(waitingQueue.index(i))
             task.waitedTime=0
             pushReady(task)
     threadLock.release()
     event1.set()
-    time.sleep(3)
+    #time.sleep(3)
+    for t in threads:
+        t.mevent.wait()
+        t.mevent.clear()
 
     if (len(waitingQueue) == 0 and len(readyQueue) == 0 and thread1.state == 'idle' and thread2.state == 'idle'
             and thread3.state == 'idle' and thread4.state == 'idle'): break
 
-print("\nwe are in time " + str(timer))
+print("\nwe are in time " + str(timer+1))
 # if not event1.is_set():
 for i in range(3):
     print("R%s:%s " % (i + 1, available[i]), end='')

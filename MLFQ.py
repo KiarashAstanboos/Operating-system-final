@@ -12,7 +12,6 @@ class myThread(threading.Thread):
         self.task = None
         self.event = event
         self.mevent = mevent
-        self.Q = 3
         self.timer = 0
 
     def run(self):
@@ -20,7 +19,7 @@ class myThread(threading.Thread):
         while True:
             self.event.wait()
             if self.task != None:
-                if self.task.getRemainingTime() == 0 or self.timer == self.Q:  # age task qabli tamum shode ya Q tamum shode bendazash birun az cpu
+                if self.task.getRemainingTime() == 0 or self.timer == self.task.mlfq:  # age task qabli tamum shode ya Q tamum shode bendazash birun az cpu
 
                     self.state = 'idle'
                     threadLock.acquire()
@@ -28,9 +27,16 @@ class myThread(threading.Thread):
                     available[0] += self.task.need[0]  # bargardoondane manabe
                     available[1] += self.task.need[1]
                     available[2] += self.task.need[2]
-                    if self.timer == self.Q and self.task.getRemainingTime() != 0:
-                        pushReady(self.task)  ## age quantom tamum shode bood bendazash readyqueue
+
+                    if self.timer == self.task.mlfq and self.task.getRemainingTime() != 0:
                         self.timer = 0
+                        if self.task.mlfq == Q2: # andakhtan too q3
+                            self.task.mlfq = Q3
+                            Queue3.append(self.task)  # andakhtan too q2
+                        elif self.task.mlfq == Q1:
+                            self.task.mlfq = Q2
+                            Queue2.append(self.task)
+
                     threadLock.release()
                     self.task = None
 
@@ -40,17 +46,17 @@ class myThread(threading.Thread):
             if isempty == False or self.state == 'running':  # ejra kardane task
                 self.state = 'running'
                 self.task.doneTime += 1
-                self.timer+=1
+                self.timer += 1
             self.mevent.set()
             self.event.clear()
 
 
-def pull() -> task:  # az ready queue task var midare
+def pull() -> task:  # az  queue task var midare
     threadLock.acquire()
     task = None
     while task == None:  # search beshe baraye taski ke beshe dad be cpu tooye waiting ke momkene available satisfy nashe va bayad dobare search beshe
-        if len(readyQueue) > 0:
-            task = readyQueue.pop(0)
+        if len(Queue1) > 0:  # Q1
+            task = Queue1.pop(0)
             if available[0] >= task.need[0] and available[1] >= task.need[1] and available[2] >= task.need[2]:
                 task.state = 'running'
                 r1 = available.pop(0) - task.need[0]
@@ -61,21 +67,42 @@ def pull() -> task:  # az ready queue task var midare
                 available.append(r3)
                 isempty = False
             else:
-                pushWaiting(task)
+                Queue2.append(task)
                 task = None
-        else:
-            break
 
+        elif len(Queue2) > 0:  # Q2
+            task = Queue2.pop(0)
+            if available[0] >= task.need[0] and available[1] >= task.need[1] and available[2] >= task.need[2]:
+                task.state = 'running'
+                r1 = available.pop(0) - task.need[0]
+                r2 = available.pop(0) - task.need[1]
+                r3 = available.pop(0) - task.need[2]
+                available.append(r1)
+                available.append(r2)
+                available.append(r3)
+                isempty = False
+            else:
+                Queue3.append(task)
+                task = None
+        elif len(Queue3) > 0:  # Q2
+            task = Queue3.pop(0)
+            if available[0] >= task.need[0] and available[1] >= task.need[1] and available[2] >= task.need[2]:
+                task.state = 'running'
+                r1 = available.pop(0) - task.need[0]
+                r2 = available.pop(0) - task.need[1]
+                r3 = available.pop(0) - task.need[2]
+                available.append(r1)
+                available.append(r2)
+                available.append(r3)
+                isempty = False
+            else:
+                Queue3.append(task)
+                task = None
+        else: break
     if task == None:
         isempty = True
     threadLock.release()
     return task, isempty
-
-
-def pushReady(task):  # append mikone be ready queue
-
-    task.state = 'ready'
-    readyQueue.append(task)
 
 
 def pushWaiting(task):  # append mikone be  waiting queue
@@ -86,8 +113,12 @@ def pushWaiting(task):  # append mikone be  waiting queue
 threadLock = threading.Lock()
 
 available = []  # resources
-readyQueue = []
-waitingQueue = []
+Queue1 = []
+Queue2 = []
+Queue3 = []
+Q1 = 2
+Q2 = 4
+Q3 = 1000
 
 # getting input
 available = input().split()  # "enter resources amount"
@@ -95,9 +126,11 @@ taskAmount = input()  # "enter task amount"
 
 for i in range(int(taskAmount)):
     name, Type, duration = input().split()
-    readyQueue.append(task(name, int(duration), Type))
+    temp = task(name, int(duration), Type)
+    temp.mlfq = Q1
+    Queue1.append(temp)
 ###
-readyQueue = sorted(readyQueue, key=lambda x: x.priority)
+Queue1 = sorted(Queue1, key=lambda x: x.priority)
 available = [int(i) for i in available]
 
 event1 = threading.Event()
@@ -117,24 +150,30 @@ thread1.start()
 thread2.start()
 thread3.start()
 thread4.start()
-for timer in range(40):
+for timer in range(4000):
     print("\nwe are in time " + str(timer))
     # if not event1.is_set():
     for i in range(3):
         print("R%s:%s " % (i + 1, available[i]), end='')
 
-    print('\nReadyQueue: ', end='')
-    if len(readyQueue) == 0:
-        print("readyQueue is Empty!", end='')
+    print('\nQ1: ', end='')
+    if len(Queue1) == 0:
+        print("Q1 is Empty!", end='')
     else:
-        for i in readyQueue: print(i.name + ' ', end='')
+        for i in Queue1: print(i.name + ' ', end='')
 
-    print('\nWaitingQueue: ', end='')
-    if len(waitingQueue) == 0:
-        print("waitingQueue is Empty!", end='')
+    print('\nQ2: ', end='')
+    if len(Queue2) == 0:
+        print("Q2 is Empty!", end='')
     else:
-        for i in waitingQueue:
+        for i in Queue2:
             print(i.name + ' ', end='')
+
+    print('\nQ3: ', end='')
+    if len(Queue3) == 0:
+        print("Q3 is Empty!", end='')
+    else:
+        for i in Queue3: print(i.name + ' ', end='')
 
     if thread1.state == 'running':
         print("\nCPU1 " + thread1.task.name)
@@ -155,23 +194,15 @@ for timer in range(40):
         print("CPU4 " + thread4.task.name)
     else:
         print("CPU4 " + thread4.state)
-    for i in waitingQueue:
-        i.waitedTime += 1
 
-    threadLock.acquire()
-    for i in waitingQueue:  # starvation
-        if i.waitedTime > 4:
-            task = waitingQueue.pop(waitingQueue.index(i))
-            task.waitedTime = 0
-            pushReady(task)
-    threadLock.release()
     event1.set()
     # time.sleep(3)
     for t in threads:
         t.mevent.wait()
         t.mevent.clear()
 
-    if (len(waitingQueue) == 0 and len(readyQueue) == 0 and thread1.state == 'idle' and thread2.state == 'idle'
+    if (len(Queue1) == 0 and len(Queue2) == 0 and len(
+            Queue3) == 0 and thread1.state == 'idle' and thread2.state == 'idle'
             and thread3.state == 'idle' and thread4.state == 'idle'): break
 
 print("\nwe are in time " + str(timer + 1))
@@ -179,18 +210,24 @@ print("\nwe are in time " + str(timer + 1))
 for i in range(3):
     print("R%s:%s " % (i + 1, available[i]), end='')
 
-print('\nReadyQueue: ', end='')
-if len(readyQueue) == 0:
-    print("readyQueue is Empty!", end='')
+print('\nQ1: ', end='')
+if len(Queue1) == 0:
+    print("Q1 is Empty!", end='')
 else:
-    for i in readyQueue: print(i.name + ' ', end='')
+    for i in Queue1: print(i.name + ' ', end='')
 
-print('\nWaitingQueue: ', end='')
-if len(waitingQueue) == 0:
-    print("waitingQueue is Empty!")
+print('\nQ2: ', end='')
+if len(Queue2) == 0:
+    print("Q2 is Empty!", end='')
 else:
-    for i in waitingQueue:
-        print(i.name, end='')
+    for i in Queue2:
+        print(i.name + ' ', end='')
+
+print('\nQ3: ', end='')
+if len(Queue3) == 0:
+    print("Q3 is Empty!", end='')
+else:
+    for i in Queue3: print(i.name + ' ', end='')
 
 if thread1.state == 'running':
     print("\nCPU1 " + thread1.task.name)

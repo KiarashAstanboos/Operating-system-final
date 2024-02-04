@@ -5,7 +5,7 @@ class task:
         self.burst = duration
 
         self.type = type  # X Y Z
-
+        self.mlfq=0
         self.state = 'ready'  # ready/waiting/running
         self.doneTime = 0
         self.waitedTime = 0
