@@ -217,6 +217,12 @@ while True:
 
     if (len(waitingQueue) == 0 and len(readyQueue) == 0 and thread1.state == 'idle' and thread2.state == 'idle'
             and thread3.state == 'idle' and thread4.state == 'idle'): break
+    if (len(readyQueue) == 0 and thread1.state == 'idle' and thread2.state == 'idle'
+            and thread3.state == 'idle' and thread4.state == 'idle'):
+        flag=False
+        for i in waitingQueue:
+            if canget(i):flag=True
+        if flag==False: break
     timer += 1
 print("\nwe are in time " + str(timer + 1))
 # if not event1.is_set():

@@ -41,7 +41,8 @@ class myThread(threading.Thread):
                             if (waitingQueue[0].getRemainingTime() < readyQueue[0].getRemainingTime() or
                                     waitingQueue[0].getRemainingTime() < readyQueue[1].getRemainingTime() or
                                     waitingQueue[0].getRemainingTime() < readyQueue[2].getRemainingTime() or
-                                    waitingQueue[0].getRemainingTime() < readyQueue[3].getRemainingTime()):  # starvation
+                                    waitingQueue[0].getRemainingTime() < readyQueue[
+                                        3].getRemainingTime()):  # starvation
                                 tempp = waitingQueue.pop(0)
                                 readyQueue.insert(0, tempp)
                         # check kardan bar asase manabe mojud
@@ -91,11 +92,14 @@ def pull() -> task:  # az ready queue task var midare
     threadLock.release()
     return task, isempty
 
+
 def canget(task):
     if task.need[0] <= available[0] and task.need[1] <= available[1] and task.need[2] <= available[2]:
         return True
     else:
         return False
+
+
 def pushReady(task):  # append mikone be ready queue
 
     task.state = 'ready'
@@ -198,7 +202,7 @@ while True:
 
     for i in waitingQueue:  # aging
         if i.waitedTime % 4 == 0: i.priority -= 1  # har 4 vahed zamani be priority ezafe mishe
-    sorted(waitingQueue, key=lambda x: (x.priority,x.getRemainingTime()))  # sort kardane priority Queue
+    sorted(waitingQueue, key=lambda x: (x.priority, x.getRemainingTime()))  # sort kardane priority Queue
 
     threadLock.release()
     event1.set()
@@ -209,6 +213,13 @@ while True:
 
     if (len(waitingQueue) == 0 and len(readyQueue) == 0 and thread1.state == 'idle' and thread2.state == 'idle'
             and thread3.state == 'idle' and thread4.state == 'idle'): break
+    if (len(readyQueue) == 0 and thread1.state == 'idle' and thread2.state == 'idle'
+            and thread3.state == 'idle' and thread4.state == 'idle'):
+        flag = False
+        for i in waitingQueue:
+            if canget(i): flag = True
+        if flag == False: break
+
     timer += 1
 
 print("\nwe are in time " + str(timer + 1))

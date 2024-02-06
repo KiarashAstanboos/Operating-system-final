@@ -55,7 +55,11 @@ class myThread(threading.Thread):
             self.event.clear()
             self.mevent.set()
 
-
+def canget(task):
+    if task.need[0] <= available[0] and task.need[1] <= available[1] and task.need[2] <= available[2]:
+        return True
+    else:
+        return False
 def pull() -> task:  # az  queue task var midare
     threadLock.acquire()
     task = None
@@ -225,6 +229,13 @@ while True:
     if (len(Queue1) == 0 and len(Queue2) == 0 and len(
             Queue3) == 0 and thread1.state == 'idle' and thread2.state == 'idle'
             and thread3.state == 'idle' and thread4.state == 'idle'): break
+
+    if (len(Queue1) == 0 and len(Queue2) == 0 and thread1.state == 'idle' and thread2.state == 'idle'
+            and thread3.state == 'idle' and thread4.state == 'idle'):
+        flag=False
+        for i in Queue3:
+            if canget(i):flag=True
+        if flag==False: break
     timer += 1
 print("\nwe are in time " + str(timer + 1))
 # if not event1.is_set():
