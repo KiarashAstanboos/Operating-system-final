@@ -1,6 +1,7 @@
 from Task import task
 import threading
 import time
+from queue import PriorityQueue
 
 
 class myThread(threading.Thread):
@@ -22,21 +23,25 @@ class myThread(threading.Thread):
                 if self.task.getRemainingTime() == 0 or self.timer == self.task.mlfq:  # age task qabli tamum shode ya Q tamum shode bendazash birun az cpu
 
                     self.state = 'idle'
+
                     threadLock.acquire()
 
                     available[0] += self.task.need[0]  # bargardoondane manabe
                     available[1] += self.task.need[1]
                     available[2] += self.task.need[2]
+                    if self.task.getRemainingTime() == 0: terminated.append(self.task)
 
                     if self.timer == self.task.mlfq and self.task.getRemainingTime() != 0:
-                        self.timer = 0
-                        if self.task.mlfq == Q2: # andakhtan too q3
+
+                        if self.task.mlfq == Q2:  # andakhtan too q3
                             self.task.mlfq = Q3
+                            self.task.state = 'ready'
                             Queue3.append(self.task)  # andakhtan too q2
                         elif self.task.mlfq == Q1:
                             self.task.mlfq = Q2
+                            self.task.state = 'ready'
                             Queue2.append(self.task)
-
+                    self.timer = 0
                     threadLock.release()
                     self.task = None
 
@@ -47,67 +52,73 @@ class myThread(threading.Thread):
                 self.state = 'running'
                 self.task.doneTime += 1
                 self.timer += 1
-            self.mevent.set()
             self.event.clear()
+            self.mevent.set()
 
 
 def pull() -> task:  # az  queue task var midare
     threadLock.acquire()
     task = None
     while task == None:  # search beshe baraye taski ke beshe dad be cpu tooye waiting ke momkene available satisfy nashe va bayad dobare search beshe
-        if len(Queue1) > 0:  # Q1
-            task = Queue1.pop(0)
-            if available[0] >= task.need[0] and available[1] >= task.need[1] and available[2] >= task.need[2]:
-                task.state = 'running'
-                r1 = available.pop(0) - task.need[0]
-                r2 = available.pop(0) - task.need[1]
-                r3 = available.pop(0) - task.need[2]
-                available.append(r1)
-                available.append(r2)
-                available.append(r3)
-                isempty = False
-            else:
-                Queue2.append(task)
-                task = None
-
-        elif len(Queue2) > 0:  # Q2
-            task = Queue2.pop(0)
-            if available[0] >= task.need[0] and available[1] >= task.need[1] and available[2] >= task.need[2]:
-                task.state = 'running'
-                r1 = available.pop(0) - task.need[0]
-                r2 = available.pop(0) - task.need[1]
-                r3 = available.pop(0) - task.need[2]
-                available.append(r1)
-                available.append(r2)
-                available.append(r3)
-                isempty = False
-            else:
-                Queue3.append(task)
-                task = None
-        elif len(Queue3) > 0:  # Q2
-            task = Queue3.pop(0)
-            if available[0] >= task.need[0] and available[1] >= task.need[1] and available[2] >= task.need[2]:
-                task.state = 'running'
-                r1 = available.pop(0) - task.need[0]
-                r2 = available.pop(0) - task.need[1]
-                r3 = available.pop(0) - task.need[2]
-                available.append(r1)
-                available.append(r2)
-                available.append(r3)
-                isempty = False
-            else:
-                Queue3.append(task)
-                task = None
-        else: break
+        if len(Queue1) > 0:
+            while len(Queue1) > 0:  # Q1
+                task = Queue1.pop(0)
+                if available[0] >= task.need[0] and available[1] >= task.need[1] and available[2] >= task.need[2]:
+                    task.state = 'running'
+                    r1 = available.pop(0) - task.need[0]
+                    r2 = available.pop(0) - task.need[1]
+                    r3 = available.pop(0) - task.need[2]
+                    available.append(r1)
+                    available.append(r2)
+                    available.append(r3)
+                    task.mlfq = Q1
+                    isempty = False
+                    break
+                else:
+                    Queue2.append(task)
+                    task = None
+        elif len(Queue2) > 0 :
+            while len(Queue2) > 0:  # Q2
+                task = Queue2.pop(0)
+                if available[0] >= task.need[0] and available[1] >= task.need[1] and available[2] >= task.need[2]:
+                    task.state = 'running'
+                    r1 = available.pop(0) - task.need[0]
+                    r2 = available.pop(0) - task.need[1]
+                    r3 = available.pop(0) - task.need[2]
+                    available.append(r1)
+                    available.append(r2)
+                    available.append(r3)
+                    task.mlfq = Q2
+                    isempty = False
+                    break
+                else:
+                    Queue3.append(task)
+                    task = None
+        elif len(Queue3) > 0 :
+            i = 0
+            while len(Queue3) > i:  # Q3
+                task = Queue3.pop(0)
+                if available[0] >= task.need[0] and available[1] >= task.need[1] and available[2] >= task.need[2]:
+                    task.state = 'running'
+                    r1 = available.pop(0) - task.need[0]
+                    r2 = available.pop(0) - task.need[1]
+                    r3 = available.pop(0) - task.need[2]
+                    available.append(r1)
+                    available.append(r2)
+                    available.append(r3)
+                    task.mlfq = Q3
+                    isempty = False
+                    break
+                else:
+                    Queue3.append(task)
+                    task = None
+                    i += 1
+            if task == None:
+                break
     if task == None:
         isempty = True
     threadLock.release()
     return task, isempty
-
-
-def pushWaiting(task):  # append mikone be  waiting queue
-    task.state = 'waiting'
-    waitingQueue.append(task)
 
 
 threadLock = threading.Lock()
@@ -116,6 +127,8 @@ available = []  # resources
 Queue1 = []
 Queue2 = []
 Queue3 = []
+
+terminated = []
 Q1 = 2
 Q2 = 4
 Q3 = 1000
@@ -128,7 +141,8 @@ for i in range(int(taskAmount)):
     name, Type, duration = input().split()
     temp = task(name, int(duration), Type)
     temp.mlfq = Q1
-    Queue1.append(temp)
+    if temp.burst > 0:
+        Queue1.append(temp)
 ###
 Queue1 = sorted(Queue1, key=lambda x: x.priority)
 available = [int(i) for i in available]
@@ -150,7 +164,8 @@ thread1.start()
 thread2.start()
 thread3.start()
 thread4.start()
-for timer in range(4000):
+timer = 0
+while True:
     print("\nwe are in time " + str(timer))
     # if not event1.is_set():
     for i in range(3):
@@ -174,7 +189,12 @@ for timer in range(4000):
         print("Q3 is Empty!", end='')
     else:
         for i in Queue3: print(i.name + ' ', end='')
-
+    print('\nTerminated: ', end='')
+    if len(terminated) == 0:
+        print("Terminated is Empty!", end='')
+    else:
+        for i in terminated:
+            print(i.name + ' ', end='')
     if thread1.state == 'running':
         print("\nCPU1 " + thread1.task.name)
     else:
@@ -204,7 +224,7 @@ for timer in range(4000):
     if (len(Queue1) == 0 and len(Queue2) == 0 and len(
             Queue3) == 0 and thread1.state == 'idle' and thread2.state == 'idle'
             and thread3.state == 'idle' and thread4.state == 'idle'): break
-
+    timer += 1
 print("\nwe are in time " + str(timer + 1))
 # if not event1.is_set():
 for i in range(3):
@@ -228,7 +248,12 @@ if len(Queue3) == 0:
     print("Q3 is Empty!", end='')
 else:
     for i in Queue3: print(i.name + ' ', end='')
-
+print('\nTerminated: ', end='')
+if len(terminated) == 0:
+    print("Terminated is Empty!", end='')
+else:
+    for i in terminated:
+        print(i.name + ' ', end='')
 if thread1.state == 'running':
     print("\nCPU1 " + thread1.task.name)
 else:

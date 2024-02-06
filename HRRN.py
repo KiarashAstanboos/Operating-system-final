@@ -195,10 +195,13 @@ while True:
     threadLock.acquire()
     for i in waitingQueue:
         i.waitedTime += 1
+    for i in readyQueue:
+        i.waitedTime += 1
 
     for i in waitingQueue:  # aging
         if i.waitedTime % 4 == 0: i.priority -= 1  # har 4 vahed zamani be priority ezafe mishe
     sorted(waitingQueue, key=lambda x: (x.priority,x.getRemainingTime()))  # sort kardane priority Queue
+    sorted(readyQueue, key=lambda x: (x.getHRRN(),x.priority),reverse=True)
 
     threadLock.release()
     event1.set()

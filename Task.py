@@ -30,3 +30,7 @@ class task:
     def getRemainingTime(self):
         self.remainingTime = self.burst - self.doneTime
         return self.remainingTime
+
+    def getHRRN(self):
+        self.hrrn=(self.waitedTime+self.burst)/self.burst
+        return self.hrrn

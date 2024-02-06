@@ -23,14 +23,44 @@ class myThread(threading.Thread):
                 if self.task.getRemainingTime() == 0 or self.timer == self.Q:  # age task qabli tamum shode ya Q tamum shode bendazash birun az cpu
 
                     self.state = 'idle'
+
                     threadLock.acquire()
 
                     available[0] += self.task.need[0]  # bargardoondane manabe
                     available[1] += self.task.need[1]
                     available[2] += self.task.need[2]
+                    if self.task.getRemainingTime() == 0: terminated.append(self.task)
                     if self.timer == self.Q and self.task.getRemainingTime() != 0:
-                        pushReady(self.task)  ## age quantom tamum shode bood bendazash readyqueue
-                        self.timer = 0
+                        pushReady(self.task)
+                    self.timer = 0
+                    threadLock.release()
+
+                    threadLock.acquire()
+                    if len(waitingQueue) > 0:  # starvation
+                        # check kardan bar asase priority
+                        if len(readyQueue)>4:
+                            if (waitingQueue[0].priority < readyQueue[0].priority or
+                                    waitingQueue[0].priority < readyQueue[1].priority or
+                                    waitingQueue[0].priority < readyQueue[2].priority or
+                                    waitingQueue[0].priority < readyQueue[3].priority):  # starvation
+                                tempp = waitingQueue.pop(0)
+                                readyQueue.insert(0, tempp)
+
+                            # check kardan bar asase remaining time
+                            if (waitingQueue[0].getRemainingTime() < readyQueue[0].getRemainingTime() or
+                                    waitingQueue[0].getRemainingTime() < readyQueue[1].getRemainingTime() or
+                                    waitingQueue[0].getRemainingTime() < readyQueue[2].getRemainingTime() or
+                                    waitingQueue[0].getRemainingTime() < readyQueue[3].getRemainingTime()):  # starvation
+                                tempp = waitingQueue.pop(0)
+                                readyQueue.insert(0, tempp)
+                        # check kardan bar asase manabe mojud
+                        else:
+                            for i in waitingQueue:
+                                if canget(i):
+                                    tempp = waitingQueue.pop(waitingQueue.index(i))
+                                    tempp.state = 'ready'
+                                    readyQueue.insert(0, tempp)
+
                     threadLock.release()
                     self.task = None
 
@@ -40,9 +70,16 @@ class myThread(threading.Thread):
             if isempty == False or self.state == 'running':  # ejra kardane task
                 self.state = 'running'
                 self.task.doneTime += 1
-                self.timer+=1
+                self.timer += 1
             self.mevent.set()
             self.event.clear()
+
+
+def canget(task):
+    if task.need[0] <= available[0] and task.need[1] <= available[1] and task.need[2] <= available[2]:
+        return True
+    else:
+        return False
 
 
 def pull() -> task:  # az ready queue task var midare
@@ -88,14 +125,16 @@ threadLock = threading.Lock()
 available = []  # resources
 readyQueue = []
 waitingQueue = []
-
+terminated = []
 # getting input
 available = input().split()  # "enter resources amount"
 taskAmount = input()  # "enter task amount"
 
 for i in range(int(taskAmount)):
     name, Type, duration = input().split()
-    readyQueue.append(task(name, int(duration), Type))
+    temp = task(name, int(duration), Type)
+    if temp.burst > 0:
+        readyQueue.append(temp)
 ###
 readyQueue = sorted(readyQueue, key=lambda x: x.priority)
 available = [int(i) for i in available]
@@ -117,7 +156,8 @@ thread1.start()
 thread2.start()
 thread3.start()
 thread4.start()
-for timer in range(40):
+timer = 0
+while True:
     print("\nwe are in time " + str(timer))
     # if not event1.is_set():
     for i in range(3):
@@ -134,6 +174,13 @@ for timer in range(40):
         print("waitingQueue is Empty!", end='')
     else:
         for i in waitingQueue:
+            print(i.name + ' ', end='')
+
+    print('\nTerminated: ', end='')
+    if len(terminated) == 0:
+        print("Terminated is Empty!", end='')
+    else:
+        for i in terminated:
             print(i.name + ' ', end='')
 
     if thread1.state == 'running':
@@ -155,15 +202,12 @@ for timer in range(40):
         print("CPU4 " + thread4.task.name)
     else:
         print("CPU4 " + thread4.state)
+    threadLock.acquire()
     for i in waitingQueue:
         i.waitedTime += 1
-
-    threadLock.acquire()
-    for i in waitingQueue:  # starvation
-        if i.waitedTime > 4:
-            task = waitingQueue.pop(waitingQueue.index(i))
-            task.waitedTime = 0
-            pushReady(task)
+    sorted(waitingQueue, key=lambda x: (x.priority,x.getRemainingTime()))  # sort kardane priority Queue
+    for i in waitingQueue:  # aging
+        if i.waitedTime % 10 == 0: i.priority -= 1
     threadLock.release()
     event1.set()
     # time.sleep(3)
@@ -173,7 +217,7 @@ for timer in range(40):
 
     if (len(waitingQueue) == 0 and len(readyQueue) == 0 and thread1.state == 'idle' and thread2.state == 'idle'
             and thread3.state == 'idle' and thread4.state == 'idle'): break
-
+    timer += 1
 print("\nwe are in time " + str(timer + 1))
 # if not event1.is_set():
 for i in range(3):
@@ -191,6 +235,13 @@ if len(waitingQueue) == 0:
 else:
     for i in waitingQueue:
         print(i.name, end='')
+
+print('\nTerminated: ', end='')
+if len(terminated) == 0:
+    print("Terminated is Empty!", end='')
+else:
+    for i in terminated:
+        print(i.name + ' ', end='')
 
 if thread1.state == 'running':
     print("\nCPU1 " + thread1.task.name)
