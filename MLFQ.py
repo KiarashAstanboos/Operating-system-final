@@ -115,6 +115,7 @@ def pull() -> task:  # az  queue task var midare
                     i += 1
             if task == None:
                 break
+        else:break
     if task == None:
         isempty = True
     threadLock.release()
