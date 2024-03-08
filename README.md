@@ -1,17 +1,42 @@
-FCFS:
-sorting tasks by their priority before begining the execution.
-for each task the algorithm checks either we have the resources or not. if the resources are not available the task will get pushed to the waiting queue other wise the task wil be asigned to a cpu.(in pull function)
-starvation: after each time a task is terminated, the algorithm checks if the first task of the waiting queue has higher priority or less remaining time than first 3 tasks of readyQueue, it will push the task to the readyQueue
-Aging: after each 4 clock that the task has been in the waitingQueue, the task's priority will get increased and after each clock the waiting queue will get sorted by the priorities so it is a priority queue.
+# Task Scheduling Algorithms Overview
 
-SJF: same as FCFS but the tasks will get sorted by their burst times (if burst times are same the taks will get sorted by their prioriteis as a tiebraker).
+This repository provides implementations of various task scheduling algorithms for operating systems. Each algorithm aims to efficiently allocate resources and manage task execution based on different criteria.
 
-RR: same as two algorithms before but the condition for pushing tasks away from the cpu is reaching the desired time quantum or getting terminated.set the self.Q in the myTHread for custom quantum time.
+## First Come First Serve (FCFS)
 
-MLFQ: same as before but there is no waiting queue so if any tasks cant get desired recourses, it will get pushed to the next queue.set Q1,Q2,Q3 for custom quantum time for each queue.
+Tasks are sorted by their priority before execution begins. For each task, the algorithm checks resource availability. If resources are not available, the task is pushed to the waiting queue; otherwise, it is assigned to a CPU. Starvation is prevented by prioritizing tasks based on their priority or remaining time compared to tasks in the ready queue. Aging increases the priority of tasks in the waiting queue over time.
 
-HRRN: same as FCFS but tasks waited time will increase even they are in the ready queue. after each iteration the ready will get sorted by the value of getHRRN().
+## Shortest Job First (SJF)
 
+Similar to FCFS, tasks are sorted, but based on their burst times. If burst times are equal, priorities are used as tiebreakers.
 
-Synchronization: for shared memories like Queue, if any cpu wants to write or read from it, it will acquire and release the lock.
-for communications between cpus i've used 5 events. 4 events for cpus to event the main thread that they have finished their job so the main thread can go to the next iteration and 1 event so the main thread can tells cpus to execute the task.
+## Round Robin (RR)
+
+Tasks are executed in a cyclic manner, with each task getting a quantum of CPU time. Tasks are pushed out of the CPU upon reaching the time quantum or upon termination.
+
+## Multilevel Feedback Queue (MLFQ)
+
+Similar to RR, but with multiple queues for tasks. Tasks move between queues based on resource availability and execution time. Each queue has its own quantum time.
+
+## Highest Response Ratio Next (HRRN)
+
+Tasks are scheduled based on their response ratio, which considers waiting time and burst time. Tasks with higher response ratios are given priority.
+
+## Synchronization
+
+Shared memory access, such as queues, is synchronized using locks to ensure thread safety. Communication between CPUs and the main thread is facilitated by events, with CPUs signaling the main thread upon job completion and the main thread signaling CPUs to execute tasks.
+
+## How to Use
+
+1. Clone the repository to your local machine.
+2. Compile and run the provided code for each scheduling algorithm.
+3. Adjust parameters such as quantum time or queue settings as needed.
+4. Analyze the performance and behavior of each algorithm.
+
+## Contribution
+
+Contributions are welcome! Feel free to submit issues or pull requests to improve the implementations or add new scheduling algorithms.
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
